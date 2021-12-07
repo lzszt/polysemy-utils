@@ -1,0 +1,130 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeOperators #-}
+
+module Effects.Logging
+  ( Severity (..),
+    parseSeverity,
+    Log,
+    LogConfig,
+    LogConfigF (..),
+    WithCtx (..),
+    defaultLogConfig,
+    runLogging,
+    disableLogging,
+    errorToFatalLog,
+    logDebug,
+    logInfo,
+    logWarning,
+    logError,
+    logFatal,
+  )
+where
+
+import qualified Colog.Polysemy.Effect as Log
+import Control.Monad
+import Data.List (intercalate)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.Proxy
+import Data.Time
+import Effects.Time
+import Polysemy
+import qualified Polysemy.Error as Error
+
+data Severity
+  = Debug
+  | Info
+  | Warning
+  | Error
+  | Fatal
+  deriving (Show, Eq, Ord, Read)
+
+parseSeverity :: String -> Maybe Severity
+parseSeverity s =
+  case reads s of
+    [(severity, "")] -> Just severity
+    _ -> Nothing
+
+data LogMessage = LogMessage
+  { logMessageSeverity :: Severity,
+    logMessageText :: String
+  }
+
+type Log = Log.Log LogMessage
+
+data LogConfigF f = LogConfig
+  { logConfigContext :: f String,
+    logConfigMinimumSeverity :: Severity
+  }
+
+instance Show LogConfig where
+  show (LogConfig ctx minSeverity) = "LogConfig { logConfigContext = " <> show (NonEmpty.toList ctx) <> ", logConfigMinimumSeverity = " <> show minSeverity <> " }"
+
+defaultLogConfig :: LogConfigF Proxy
+defaultLogConfig = LogConfig Proxy Error
+
+class WithCtx c where
+  addContext :: LogConfigF c -> String -> LogConfig
+
+instance WithCtx Proxy where
+  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.:| []}
+
+instance WithCtx NonEmpty where
+  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
+
+type LogConfig = LogConfigF NonEmpty
+
+logDebug :: Members '[Log] r => String -> Sem r ()
+logDebug = Log.log . LogMessage Debug
+
+logInfo :: Members '[Log] r => String -> Sem r ()
+logInfo = Log.log . LogMessage Info
+
+logWarning :: Members '[Log] r => String -> Sem r ()
+logWarning = Log.log . LogMessage Warning
+
+logError :: Members '[Log] r => String -> Sem r ()
+logError = Log.log . LogMessage Error
+
+logFatal :: Members '[Log] r => String -> Sem r ()
+logFatal = Log.log . LogMessage Fatal
+
+squareBrackets :: String -> String
+squareBrackets s = "[" <> s <> "]"
+
+formatLogSeverity :: Severity -> String
+formatLogSeverity = take 9 . (<> replicate 3 ' ') . squareBrackets . show
+
+formatLogContext :: NonEmpty String -> String
+formatLogContext = squareBrackets . intercalate ", " . NonEmpty.toList
+
+runLogging :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLogging logConfig = interpret $ \case
+  Log.Log logMsg ->
+    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $ do
+      now <- getTime
+      embed $
+        putStrLn $
+          formatLogSeverity (logMessageSeverity logMsg) <> " " <> formatLogContext (logConfigContext logConfig) <> " " <> formatTimeForLog now <> " " <> logMessageText logMsg
+
+disableLogging :: Sem (Log : r) a -> Sem r a
+disableLogging = interpret $ \Log.Log {} -> pure ()
+
+formatTimeForLog :: UTCTime -> String
+formatTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T"
+
+errorToFatalLog ::
+  Show e =>
+  Members '[Log] r =>
+  Sem (Error.Error e : r) a ->
+  Sem r a
+errorToFatalLog =
+  Error.runError
+    >=> \case
+      Left e -> do
+        logFatal $ show e
+        error $ show e
+      Right x -> pure x
