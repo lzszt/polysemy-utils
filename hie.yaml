@@ -2,3 +2,5 @@ cradle:
   cabal:
     - path: "src"
       component: "polysemy-utils:lib:polysemy-utils"
+    - path: "test"
+      component: "polysemy-utils:test:polysemy-utils-test"
