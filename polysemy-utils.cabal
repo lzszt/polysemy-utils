@@ -1,0 +1,30 @@
+cabal-version:      2.4
+name:               polysemy-utils
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             Felix Leitz
+maintainer:         felix.leitz92@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+library
+    exposed-modules:
+    other-modules:
+    ghc-options:      -Wall -O2
+    build-depends:    base
+    hs-source-dirs:   src
+    default-language: Haskell2010
