@@ -13,6 +13,7 @@ module Effects.Logging
     WithCtx (..),
     defaultLogConfig,
     runLogging,
+    runLoggingWithTime,
     disableLogging,
     errorToFatalLog,
     logDebug,
@@ -101,14 +102,38 @@ formatLogSeverity = take 9 . (<> replicate 3 ' ') . squareBrackets . show
 formatLogContext :: NonEmpty String -> String
 formatLogContext = squareBrackets . intercalate ", " . NonEmpty.toList
 
-runLogging :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
-runLogging logConfig = interpret $ \case
-  Log.Log logMsg ->
-    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $ do
-      now <- getTime
+logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> Maybe UTCTime -> Sem r ()
+logPutStrLn logConfig logMsg = \case
+  Just now ->
+    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $
       embed $
         putStrLn $
-          formatLogSeverity (logMessageSeverity logMsg) <> " " <> formatLogContext (logConfigContext logConfig) <> " " <> formatTimeForLog now <> " " <> logMessageText logMsg
+          formatLogSeverity (logMessageSeverity logMsg)
+            <> " "
+            <> formatLogContext (logConfigContext logConfig)
+            <> " "
+            <> formatTimeForLog now
+            <> " "
+            <> logMessageText logMsg
+  Nothing ->
+    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $
+      embed $
+        putStrLn $
+          formatLogSeverity (logMessageSeverity logMsg)
+            <> " "
+            <> formatLogContext (logConfigContext logConfig)
+            <> " "
+            <> logMessageText logMsg
+
+runLoggingWithTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLoggingWithTime logConfig = interpret $ \case
+  Log.Log logMsg -> do
+    now <- getTime
+    logPutStrLn logConfig logMsg (Just now)
+
+runLogging :: Members '[Embed IO] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLogging logConfig = interpret $ \case
+  Log.Log logMsg -> logPutStrLn logConfig logMsg Nothing
 
 disableLogging :: Sem (Log : r) a -> Sem r a
 disableLogging = interpret $ \Log.Log {} -> pure ()
