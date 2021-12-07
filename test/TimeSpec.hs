@@ -2,16 +2,11 @@
 
 module TimeSpec where
 
-import Data.Time
-import Data.Time.Clock.POSIX
 import Effects.Time
 import Polysemy
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.QuickCheck
-
-instance Arbitrary UTCTime where
-  arbitrary = posixSecondsToUTCTime . fromInteger <$> arbitrary
+import Utils ()
 
 spec :: Spec
 spec =

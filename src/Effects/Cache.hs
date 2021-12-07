@@ -16,6 +16,7 @@ module Effects.Cache
     CacheStrategy (..),
     get,
     update,
+    isValid,
     runCacheAsState,
   )
 where
@@ -38,6 +39,7 @@ type CacheType k v = Map.Map k (UTCTime, v)
 data CacheStrategy
   = Indefinitly
   | CacheFor NominalDiffTime
+  deriving (Show)
 
 isValid :: CacheStrategy -> UTCTime -> UTCTime -> Bool
 isValid Indefinitly _ _ = True

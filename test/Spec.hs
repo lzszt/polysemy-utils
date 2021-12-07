@@ -1,3 +1,4 @@
+import qualified CacheSpec
 import Test.Hspec
 import qualified TimeSpec
 
@@ -8,3 +9,4 @@ main =
 spec :: Spec
 spec = do
   TimeSpec.spec
+  CacheSpec.spec

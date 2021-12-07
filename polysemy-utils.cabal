@@ -48,9 +48,12 @@ test-suite polysemy-utils-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    TimeSpec
+                  , CacheSpec
+                  , Utils
   hs-source-dirs:   test
   ghc-options:      -Wall
   build-depends:    base
+                  , containers
                   , hspec
                   , polysemy
                   , polysemy-utils
