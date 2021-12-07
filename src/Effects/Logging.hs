@@ -93,15 +93,6 @@ logError = Log.log . LogMessage Error
 logFatal :: Members '[Log] r => String -> Sem r ()
 logFatal = Log.log . LogMessage Fatal
 
-squareBrackets :: String -> String
-squareBrackets s = "[" <> s <> "]"
-
-formatLogSeverity :: Severity -> String
-formatLogSeverity = take 9 . (<> replicate 3 ' ') . squareBrackets . show
-
-formatLogContext :: NonEmpty String -> String
-formatLogContext = squareBrackets . intercalate ", " . NonEmpty.toList
-
 logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> Maybe UTCTime -> Sem r ()
 logPutStrLn logConfig logMsg = \case
   Just now ->
@@ -124,22 +115,22 @@ logPutStrLn logConfig logMsg = \case
             <> formatLogContext (logConfigContext logConfig)
             <> " "
             <> logMessageText logMsg
+  where
+    formatTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T"
+    squareBrackets s = "[" <> s <> "]"
+    formatLogSeverity = take 9 . (<> replicate 3 ' ') . squareBrackets . show
+    formatLogContext = squareBrackets . intercalate ", " . NonEmpty.toList
 
 runLoggingWithTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
-runLoggingWithTime logConfig = interpret $ \case
-  Log.Log logMsg -> do
-    now <- getTime
-    logPutStrLn logConfig logMsg (Just now)
+runLoggingWithTime logConfig = interpret $
+  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . Just =<< getTime
 
 runLogging :: Members '[Embed IO] r => LogConfig -> Sem (Log : r) a -> Sem r a
-runLogging logConfig = interpret $ \case
-  Log.Log logMsg -> logPutStrLn logConfig logMsg Nothing
+runLogging logConfig = interpret $
+  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg Nothing
 
 disableLogging :: Sem (Log : r) a -> Sem r a
 disableLogging = interpret $ \Log.Log {} -> pure ()
-
-formatTimeForLog :: UTCTime -> String
-formatTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T"
 
 errorToFatalLog ::
   Show e =>
