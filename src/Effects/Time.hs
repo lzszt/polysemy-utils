@@ -15,11 +15,14 @@ module Effects.Time
     getTime,
     runTime,
     runFixedTime,
+    runFakeTime,
   )
 where
 
 import Data.Time
+import Effects.Delay
 import Polysemy
+import Polysemy.State
 
 -- | An effect for the current `UTCTime`
 data Time r a where
@@ -33,7 +36,17 @@ runTime =
   interpret $ \case
     GetTime -> embed getCurrentTime
 
+-- | Testing interpretations
+
 -- | Run `Time` effect with a fixed `UTCTime`
 runFixedTime :: UTCTime -> Sem (Time : r) a -> Sem r a
 runFixedTime fixedTime =
   interpret $ \GetTime -> pure fixedTime
+
+-- | Runs `Time` as fixed to given `UTCTime`
+-- but advances time whenever a `Delay` effect is encountered
+runFakeTime :: UTCTime -> Sem (Time : Delay : State UTCTime : r) a -> Sem r a
+runFakeTime startTime =
+  evalState startTime
+    . interpret (\(Delay d) -> modify (addUTCTime d))
+    . interpret (\GetTime -> get)

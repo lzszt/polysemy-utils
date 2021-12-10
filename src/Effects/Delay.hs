@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Effects.Delay
-  ( Delay,
+  ( Delay (..),
     delay,
     runDelay,
   )
