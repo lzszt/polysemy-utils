@@ -23,8 +23,9 @@ module Effects.PostgreSQL
     ToField (..),
     FromField (..),
     Only (..),
-    Single,
-    fromSingle,
+    SqlError,
+    Error.Error,
+    Resource,
   )
 where
 
@@ -62,9 +63,3 @@ runPostgreSQL connectInfo act =
             Execute_ queryStr -> Error.fromException @SqlError $ DB.execute_ conn queryStr
         )
         act
-
-type Single a = [a]
-
-fromSingle :: Single a -> a
-fromSingle [x] = x
-fromSingle x = error $ "expected exactly one row, got: " <> show (length x)
