@@ -16,6 +16,7 @@ module Effects.Logging
     runLoggingWithTime,
     disableLogging,
     errorToFatalLog,
+    errorToLog,
     logDebug,
     logInfo,
     logWarning,
@@ -156,7 +157,7 @@ runLogging logConfig = interpret $
 disableLogging :: Sem (Log : r) a -> Sem r a
 disableLogging = interpret $ \Log.Log {} -> pure ()
 
--- | Convert a `Error` into a log message with `Fatal` severity.
+-- | Convert an `Error` into a log message with `Fatal` severity.
 errorToFatalLog ::
   Show e =>
   Members '[Log] r =>
@@ -168,4 +169,17 @@ errorToFatalLog =
       Left e -> do
         logFatal $ show e
         error $ show e
+      Right x -> pure x
+
+-- | Convert an `Error` into a log message with `Error` severity.
+errorToLog ::
+  Show e =>
+  Members '[Log] r =>
+  Sem (Error.Error e : r) () ->
+  Sem r ()
+errorToLog =
+  Error.runError
+    >=> \case
+      Left e ->
+        logError $ show e
       Right x -> pure x
