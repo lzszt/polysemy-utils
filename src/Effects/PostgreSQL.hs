@@ -17,6 +17,7 @@ module Effects.PostgreSQL
     execute_,
     execute,
     runPostgreSQL,
+    runPostgreSQLI,
     Query,
     FromRow (..),
     ToRow (..),
@@ -38,6 +39,7 @@ import Database.PostgreSQL.Simple.ToRow
 import GHC.Int (Int64)
 import Polysemy
 import qualified Polysemy.Error as Error
+import Polysemy.Input
 import Polysemy.Resource
 
 data PostgreSQL m r where
@@ -63,3 +65,15 @@ runPostgreSQL connectInfo act =
             Execute_ queryStr -> Error.fromException @SqlError $ DB.execute_ conn queryStr
         )
         act
+
+runPostgreSQLI :: Members '[Embed IO, Error.Error SqlError, Input Connection] r => Sem (PostgreSQL : r) a -> Sem r a
+runPostgreSQLI act = do
+  conn <- input
+  interpret
+    ( \case
+        Query queryStr queryRow -> Error.fromException @SqlError $ DB.query conn queryStr queryRow
+        Query_ queryStr -> Error.fromException @SqlError $ DB.query_ conn queryStr
+        Execute queryStr queryRow -> Error.fromException @SqlError $ DB.execute conn queryStr queryRow
+        Execute_ queryStr -> Error.fromException @SqlError $ DB.execute_ conn queryStr
+    )
+    act
