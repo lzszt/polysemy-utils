@@ -24,13 +24,14 @@ module Effects.PostgreSQL
     ToField (..),
     FromField (..),
     Only (..),
-    SqlError,
+    PostgreSQLError (..),
     Error.Error,
     Resource,
   )
 where
 
-import Database.PostgreSQL.Simple (ConnectInfo, Connection, Only (..), Query, SqlError, close, connect)
+import qualified Control.Exception as Ex
+import Database.PostgreSQL.Simple (ConnectInfo, Connection, Only (..), Query, close, connect)
 import qualified Database.PostgreSQL.Simple as DB
 import Database.PostgreSQL.Simple.FromField
 import Database.PostgreSQL.Simple.FromRow
@@ -50,30 +51,48 @@ data PostgreSQL m r where
 
 makeSem ''PostgreSQL
 
+data PostgreSQLError
+  = PSQLFormatError DB.FormatError
+  | PSQLQueryError DB.QueryError
+  | PSQLResultError DB.ResultError
+  | PSQLSqlError DB.SqlError
+  deriving (Show)
+
 withConnection :: Members '[Embed IO] r => ConnectInfo -> (Connection -> Sem (Resource : r) a) -> Sem r a
 withConnection connectInfo = resourceToIO . bracket (embed $ connect connectInfo) (embed . close)
 
-runPostgreSQL :: Members '[Embed IO, Error.Error SqlError] r => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
+runPostgreSQL :: Members '[Embed IO, Error.Error PostgreSQLError] r => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
 runPostgreSQL connectInfo act =
   withConnection connectInfo $
     \conn ->
       interpret
         ( \case
-            Query queryStr queryRow -> Error.fromException @SqlError $ DB.query conn queryStr queryRow
-            Query_ queryStr -> Error.fromException @SqlError $ DB.query_ conn queryStr
-            Execute queryStr queryRow -> Error.fromException @SqlError $ DB.execute conn queryStr queryRow
-            Execute_ queryStr -> Error.fromException @SqlError $ DB.execute_ conn queryStr
+            Query queryStr queryRow -> postgreSQLErrorFromException $ DB.query conn queryStr queryRow
+            Query_ queryStr -> postgreSQLErrorFromException $ DB.query_ conn queryStr
+            Execute queryStr queryRow -> postgreSQLErrorFromException $ DB.execute conn queryStr queryRow
+            Execute_ queryStr -> postgreSQLErrorFromException $ DB.execute_ conn queryStr
         )
         act
 
-runPostgreSQLI :: Members '[Embed IO, Error.Error SqlError, Input Connection] r => Sem (PostgreSQL : r) a -> Sem r a
+runPostgreSQLI :: Members '[Embed IO, Error.Error PostgreSQLError, Input Connection] r => Sem (PostgreSQL : r) a -> Sem r a
 runPostgreSQLI act = do
   conn <- input
   interpret
     ( \case
-        Query queryStr queryRow -> Error.fromException @SqlError $ DB.query conn queryStr queryRow
-        Query_ queryStr -> Error.fromException @SqlError $ DB.query_ conn queryStr
-        Execute queryStr queryRow -> Error.fromException @SqlError $ DB.execute conn queryStr queryRow
-        Execute_ queryStr -> Error.fromException @SqlError $ DB.execute_ conn queryStr
+        Query queryStr queryRow -> postgreSQLErrorFromException $ DB.query conn queryStr queryRow
+        Query_ queryStr -> postgreSQLErrorFromException $ DB.query_ conn queryStr
+        Execute queryStr queryRow -> postgreSQLErrorFromException $ DB.execute conn queryStr queryRow
+        Execute_ queryStr -> postgreSQLErrorFromException $ DB.execute_ conn queryStr
     )
     act
+
+postgreSQLErrorFromException :: Members '[Embed IO, Error.Error PostgreSQLError] r => IO a -> Sem r a
+postgreSQLErrorFromException act =
+  Error.fromEitherM $
+    Ex.catches
+      (Right <$> act)
+      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
+      ]
