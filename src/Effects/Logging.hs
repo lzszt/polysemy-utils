@@ -14,6 +14,7 @@ module Effects.Logging (
   defaultLogConfig,
   runLogging,
   runLoggingWithTime,
+  runLoggingWithProfilingTime,
   disableLogging,
   errorToFatalLog,
   errorToLog,
@@ -56,16 +57,6 @@ data LogMessage = LogMessage
   , logMessageText :: String
   }
 
--- | Class for converting string like values to string
-class ToString s where
-  toString :: s -> String
-
-instance ToString String where
-  toString = id
-
--- instance ToString Text where
---   toString = T.pack
-
 -- | Type of the logging effect
 type Log = Log.Log LogMessage
 
@@ -104,63 +95,72 @@ instance WithCtx NonEmpty where
 type LogConfig = LogConfigF NonEmpty
 
 -- | Log a message with severity `Debug`
-logDebug :: ToString s => Members '[Log] r => s -> Sem r ()
-logDebug = Log.log . LogMessage Debug . toString
+logDebug :: Members '[Log] r => String -> Sem r ()
+logDebug = Log.log . LogMessage Debug
 
 -- | Log a message with severity `Info`
-logInfo :: ToString s => Members '[Log] r => s -> Sem r ()
-logInfo = Log.log . LogMessage Info . toString
+logInfo :: Members '[Log] r => String -> Sem r ()
+logInfo = Log.log . LogMessage Info
 
 -- | Log a message with severity `Warning`
-logWarning :: ToString s => Members '[Log] r => s -> Sem r ()
-logWarning = Log.log . LogMessage Warning . toString
+logWarning :: Members '[Log] r => String -> Sem r ()
+logWarning = Log.log . LogMessage Warning
 
 -- | Log a message with severity `Error`
-logError :: ToString s => Members '[Log] r => s -> Sem r ()
-logError = Log.log . LogMessage Error . toString
+logError :: Members '[Log] r => String -> Sem r ()
+logError = Log.log . LogMessage Error
 
 -- | Log a message with severity `Fatal`
-logFatal :: ToString s => Members '[Log] r => s -> Sem r ()
-logFatal = Log.log . LogMessage Fatal . toString
+logFatal :: Members '[Log] r => String -> Sem r ()
+logFatal = Log.log . LogMessage Fatal
 
-logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> Maybe UTCTime -> Sem r ()
-logPutStrLn logConfig logMsg = \case
-  Just now ->
-    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $
-      embed $
-        putStrLn $
-          formatLogSeverity (logMessageSeverity logMsg)
-            <> " "
-            <> formatLogContext (logConfigContext logConfig)
-            <> " "
-            <> formatTimeForLog now
-            <> " "
-            <> logMessageText logMsg
-  Nothing ->
-    when (logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig) $
-      embed $
-        putStrLn $
-          formatLogSeverity (logMessageSeverity logMsg)
-            <> " "
-            <> formatLogContext (logConfigContext logConfig)
-            <> " "
-            <> logMessageText logMsg
+data TimingMode
+  = NoTiming
+  | DateTime UTCTime
+  | PrecisionDateTime UTCTime
+
+logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> TimingMode -> Sem r ()
+logPutStrLn logConfig logMsg
+  | logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig =
+    ( embed
+        . putStrLn
+        . ( \formattedTime ->
+              formatLogSeverity (logMessageSeverity logMsg)
+                <> " "
+                <> formatLogContext (logConfigContext logConfig)
+                <> " "
+                <> formattedTime
+                <> logMessageText logMsg
+          )
+    )
+      . \case
+        PrecisionDateTime now -> formatProfilingTimeForLog now <> " "
+        DateTime now -> formatTimeForLog now <> " "
+        NoTiming -> ""
+  | otherwise = const $ pure ()
   where
     formatTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T"
+    formatProfilingTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T%Q"
     squareBrackets s = "[" <> s <> "]"
     formatLogSeverity = take 9 . (<> replicate 3 ' ') . squareBrackets . show
     formatLogContext = squareBrackets . intercalate ", " . NonEmpty.toList
 
 -- | Runs the `Log` effect according to the `LogConfig` given.
+-- Adds a timestamp to the log output with up to 12 decimal seconds.
+runLoggingWithProfilingTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLoggingWithProfilingTime logConfig = interpret $
+  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . PrecisionDateTime =<< getTime
+
+-- | Runs the `Log` effect according to the `LogConfig` given.
 -- Adds a timestamp to the log output.
 runLoggingWithTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
 runLoggingWithTime logConfig = interpret $
-  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . Just =<< getTime
+  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . DateTime =<< getTime
 
 -- | Runs the `Log` effect according to the `LogConfig` given.
 runLogging :: Members '[Embed IO] r => LogConfig -> Sem (Log : r) a -> Sem r a
 runLogging logConfig = interpret $
-  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg Nothing
+  \(Log.Log logMsg) -> logPutStrLn logConfig logMsg NoTiming
 
 -- | Suppresses the log message.
 disableLogging :: Sem (Log : r) a -> Sem r a
