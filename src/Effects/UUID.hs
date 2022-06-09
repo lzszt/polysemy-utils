@@ -7,14 +7,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.UUID
-  ( UUIDEff (..),
-    getUUID,
-    UUID,
-    runUUIDEff,
-    withConstantUUID,
-  )
-where
+module Effects.UUID (
+  UUIDEff (..),
+  getUUID,
+  UUID,
+  runUUIDEff,
+  withConstantUUID,
+) where
 
 import Data.UUID
 import Data.UUID.V4

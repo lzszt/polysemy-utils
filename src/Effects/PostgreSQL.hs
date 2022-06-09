@@ -10,25 +10,24 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.PostgreSQL
-  ( PostgreSQL (..),
-    query_,
-    query,
-    execute_,
-    execute,
-    runPostgreSQL,
-    runPostgreSQLI,
-    Query,
-    FromRow (..),
-    ToRow (..),
-    ToField (..),
-    FromField (..),
-    Only (..),
-    PostgreSQLError (..),
-    Error.Error,
-    Resource,
-  )
-where
+module Effects.PostgreSQL (
+  PostgreSQL (..),
+  query_,
+  query,
+  execute_,
+  execute,
+  runPostgreSQL,
+  runPostgreSQLI,
+  Query,
+  FromRow (..),
+  ToRow (..),
+  ToField (..),
+  FromField (..),
+  Only (..),
+  PostgreSQLError (..),
+  Error.Error,
+  Resource,
+) where
 
 import qualified Control.Exception as Ex
 import Database.PostgreSQL.Simple (ConnectInfo, Connection, Only (..), Query, close, connect)
@@ -91,8 +90,8 @@ postgreSQLErrorFromException act =
   Error.fromEitherM $
     Ex.catches
       (Right <$> act)
-      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
+      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex
+      , Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex
+      , Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex
+      , Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
       ]

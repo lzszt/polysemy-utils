@@ -4,26 +4,25 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Logging
-  ( Severity (..),
-    parseSeverity,
-    Log,
-    LogConfig,
-    LogConfigF (..),
-    WithCtx (..),
-    defaultLogConfig,
-    runLogging,
-    runLoggingWithTime,
-    disableLogging,
-    errorToFatalLog,
-    errorToLog,
-    logDebug,
-    logInfo,
-    logWarning,
-    logError,
-    logFatal,
-  )
-where
+module Effects.Logging (
+  Severity (..),
+  parseSeverity,
+  Log,
+  LogConfig,
+  LogConfigF (..),
+  WithCtx (..),
+  defaultLogConfig,
+  runLogging,
+  runLoggingWithTime,
+  disableLogging,
+  errorToFatalLog,
+  errorToLog,
+  logDebug,
+  logInfo,
+  logWarning,
+  logError,
+  logFatal,
+) where
 
 import qualified Colog.Polysemy.Effect as Log
 import Control.Monad
@@ -53,9 +52,19 @@ parseSeverity s =
     _ -> Nothing
 
 data LogMessage = LogMessage
-  { logMessageSeverity :: Severity,
-    logMessageText :: String
+  { logMessageSeverity :: Severity
+  , logMessageText :: String
   }
+
+-- | Class for converting string like values to string
+class ToString s where
+  toString :: s -> String
+
+instance ToString String where
+  toString = id
+
+-- instance ToString Text where
+--   toString = T.pack
 
 -- | Type of the logging effect
 type Log = Log.Log LogMessage
@@ -63,8 +72,8 @@ type Log = Log.Log LogMessage
 -- | A config for logging.
 -- Contains a context `String` and a minimun `Severity`.
 data LogConfigF f = LogConfig
-  { logConfigContext :: f String,
-    logConfigMinimumSeverity :: Severity
+  { logConfigContext :: f String
+  , logConfigMinimumSeverity :: Severity
   }
 
 instance Show LogConfig where
@@ -85,34 +94,34 @@ class WithCtx c where
   addContext :: LogConfigF c -> String -> LogConfig
 
 instance WithCtx Proxy where
-  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.:| []}
+  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.:| []}
 
 instance WithCtx NonEmpty where
-  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
+  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
 
 -- | A complete `LogConfig` which can be used to run
 -- the `Log` effect.
 type LogConfig = LogConfigF NonEmpty
 
 -- | Log a message with severity `Debug`
-logDebug :: Members '[Log] r => String -> Sem r ()
-logDebug = Log.log . LogMessage Debug
+logDebug :: ToString s => Members '[Log] r => s -> Sem r ()
+logDebug = Log.log . LogMessage Debug . toString
 
 -- | Log a message with severity `Info`
-logInfo :: Members '[Log] r => String -> Sem r ()
-logInfo = Log.log . LogMessage Info
+logInfo :: ToString s => Members '[Log] r => s -> Sem r ()
+logInfo = Log.log . LogMessage Info . toString
 
 -- | Log a message with severity `Warning`
-logWarning :: Members '[Log] r => String -> Sem r ()
-logWarning = Log.log . LogMessage Warning
+logWarning :: ToString s => Members '[Log] r => s -> Sem r ()
+logWarning = Log.log . LogMessage Warning . toString
 
 -- | Log a message with severity `Error`
-logError :: Members '[Log] r => String -> Sem r ()
-logError = Log.log . LogMessage Error
+logError :: ToString s => Members '[Log] r => s -> Sem r ()
+logError = Log.log . LogMessage Error . toString
 
 -- | Log a message with severity `Fatal`
-logFatal :: Members '[Log] r => String -> Sem r ()
-logFatal = Log.log . LogMessage Fatal
+logFatal :: ToString s => Members '[Log] r => s -> Sem r ()
+logFatal = Log.log . LogMessage Fatal . toString
 
 logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> Maybe UTCTime -> Sem r ()
 logPutStrLn logConfig logMsg = \case
@@ -155,7 +164,7 @@ runLogging logConfig = interpret $
 
 -- | Suppresses the log message.
 disableLogging :: Sem (Log : r) a -> Sem r a
-disableLogging = interpret $ \Log.Log {} -> pure ()
+disableLogging = interpret $ \Log.Log{} -> pure ()
 
 -- | Convert an `Error` into a log message with `Fatal` severity.
 errorToFatalLog ::

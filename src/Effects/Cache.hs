@@ -10,16 +10,15 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Cache
-  ( Cache,
-    CacheType,
-    CacheStrategy (..),
-    get,
-    update,
-    isValid,
-    runCacheAsState,
-  )
-where
+module Effects.Cache (
+  Cache,
+  CacheType,
+  CacheStrategy (..),
+  get,
+  update,
+  isValid,
+  runCacheAsState,
+) where
 
 import qualified Data.Map.Strict as Map
 import Data.Time

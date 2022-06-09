@@ -7,8 +7,8 @@ in pkgs.haskellPackages.shellFor {
     pkgs.haskellPackages.cabal-install
     pkgs.haskellPackages.ghc
     pkgs.haskellPackages.hlint
-    pkgs.haskellPackages.ormolu
+    pkgs.haskellPackages.fourmolu
     pkgs.haskellPackages.ghcid
-    pkgs.haskellPackages.ghcide
+    pkgs.haskellPackages.haskell-language-server
   ];
 }
