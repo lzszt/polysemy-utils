@@ -13,9 +13,6 @@ let
             super.haskell.lib.dontHaddock
             (super.haskell.lib.disableLibraryProfiling drv);
 
-          co-log-polysemy =
-            defaultMod (super.haskell.lib.doJailbreak hsuper.co-log-polysemy);
-
           polysemy-utils-src = self.nix-gitignore.gitignoreSource [
             "*.git"
             "dist"
@@ -23,10 +20,7 @@ let
           ] ../.;
           polysemy-utils =
             hself.callCabal2nix "polysemy-utils" polysemy-utils-src { };
-        in {
-          inherit polysemy-utils;
-          inherit co-log-polysemy;
-        };
+        in { inherit polysemy-utils; };
     };
   };
 in [ customHaskellPackages ]

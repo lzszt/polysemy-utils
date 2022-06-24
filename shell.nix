@@ -1,14 +1,6 @@
-{ path ? null }:
-
-let pkgs = import ./nix/pkgs.nix { inherit path; };
-in pkgs.haskellPackages.shellFor {
-  packages = p: [ p.polysemy-utils ];
-  buildInputs = [
-    pkgs.haskellPackages.cabal-install
-    pkgs.haskellPackages.ghc
-    pkgs.haskellPackages.hlint
-    pkgs.haskellPackages.fourmolu
-    pkgs.haskellPackages.ghcid
-    pkgs.haskellPackages.haskell-language-server
-  ];
-}
+(import (let lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+in fetchTarball {
+  url =
+    "https://github.com/edolstra/flake-compat/archive/${lock.nodes.flake-compat.locked.rev}.tar.gz";
+  sha256 = lock.nodes.flake-compat.locked.narHash;
+}) { src = ./.; }).shellNix
