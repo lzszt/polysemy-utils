@@ -27,6 +27,9 @@ module Effects.PostgreSQL (
   PostgreSQLError (..),
   Error.Error,
   Resource,
+  -- | reexports from postgresql-simple
+  DB.defaultConnectInfo,
+  DB.ConnectInfo (..),
 ) where
 
 import qualified Control.Exception as Ex
