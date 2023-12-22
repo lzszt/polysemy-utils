@@ -61,10 +61,10 @@ data PostgreSQLError
   | PSQLSqlError DB.SqlError
   deriving (Show)
 
-withConnection :: (Members '[Embed IO] r) => ConnectInfo -> (Connection -> Sem (Resource : r) a) -> Sem r a
-withConnection connectInfo = resourceToIO . bracket (embed $ connect connectInfo) (embed . close)
+withConnection :: (Members '[Final IO] r) => ConnectInfo -> (Connection -> Sem (Resource : r) a) -> Sem r a
+withConnection connectInfo = resourceToIOFinal . bracket (embedFinal $ connect connectInfo) (embedFinal . close)
 
-runPostgreSQL :: (Members '[Embed IO, Error.Error PostgreSQLError] r) => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
+runPostgreSQL :: (Members '[Final IO, Error.Error PostgreSQLError] r) => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
 runPostgreSQL connectInfo act =
   withConnection connectInfo $
     \conn ->
@@ -77,7 +77,7 @@ runPostgreSQL connectInfo act =
         )
         act
 
-runPostgreSQLI :: (Members '[Embed IO, Error.Error PostgreSQLError, Input Connection] r) => Sem (PostgreSQL : r) a -> Sem r a
+runPostgreSQLI :: (Members '[Final IO, Error.Error PostgreSQLError, Input Connection] r) => Sem (PostgreSQL : r) a -> Sem r a
 runPostgreSQLI act = do
   conn <- input
   interpret
@@ -89,13 +89,14 @@ runPostgreSQLI act = do
     )
     act
 
-postgreSQLErrorFromException :: (Members '[Embed IO, Error.Error PostgreSQLError] r) => IO a -> Sem r a
+postgreSQLErrorFromException :: (Members '[Final IO, Error.Error PostgreSQLError] r) => IO a -> Sem r a
 postgreSQLErrorFromException act =
-  Error.fromEitherM $
-    Ex.catches
-      (Right <$> act)
-      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
-        Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
-      ]
+  embedToFinal $
+    Error.fromEitherM $
+      Ex.catches
+        (Right <$> act)
+        [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
+          Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
+          Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
+          Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
+        ]
