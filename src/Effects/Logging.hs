@@ -4,26 +4,27 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Logging (
-  Severity (..),
-  parseSeverity,
-  Log,
-  LogConfig,
-  LogConfigF (..),
-  WithCtx (..),
-  defaultLogConfig,
-  runLogging,
-  runLoggingWithTime,
-  runLoggingWithProfilingTime,
-  disableLogging,
-  errorToFatalLog,
-  errorToLog,
-  logDebug,
-  logInfo,
-  logWarning,
-  logError,
-  logFatal,
-) where
+module Effects.Logging
+  ( Severity (..),
+    parseSeverity,
+    Log,
+    LogConfig,
+    LogConfigF (..),
+    WithCtx (..),
+    defaultLogConfig,
+    runLogging,
+    runLoggingWithTime,
+    runLoggingWithProfilingTime,
+    disableLogging,
+    errorToFatalLog,
+    errorToLog,
+    logDebug,
+    logInfo,
+    logWarning,
+    logError,
+    logFatal,
+  )
+where
 
 import qualified Colog.Polysemy.Effect as Log
 import Control.Monad
@@ -53,8 +54,8 @@ parseSeverity s =
     _ -> Nothing
 
 data LogMessage = LogMessage
-  { logMessageSeverity :: Severity
-  , logMessageText :: String
+  { logMessageSeverity :: Severity,
+    logMessageText :: String
   }
 
 -- | Type of the logging effect
@@ -63,8 +64,8 @@ type Log = Log.Log LogMessage
 -- | A config for logging.
 -- Contains a context `String` and a minimun `Severity`.
 data LogConfigF f = LogConfig
-  { logConfigContext :: f String
-  , logConfigMinimumSeverity :: Severity
+  { logConfigContext :: f String,
+    logConfigMinimumSeverity :: Severity
   }
 
 instance Show LogConfig where
@@ -85,33 +86,33 @@ class WithCtx c where
   addContext :: LogConfigF c -> String -> LogConfig
 
 instance WithCtx Proxy where
-  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.:| []}
+  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.:| []}
 
 instance WithCtx NonEmpty where
-  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
+  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
 
 -- | A complete `LogConfig` which can be used to run
 -- the `Log` effect.
 type LogConfig = LogConfigF NonEmpty
 
 -- | Log a message with severity `Debug`
-logDebug :: Members '[Log] r => String -> Sem r ()
+logDebug :: (Members '[Log] r) => String -> Sem r ()
 logDebug = Log.log . LogMessage Debug
 
 -- | Log a message with severity `Info`
-logInfo :: Members '[Log] r => String -> Sem r ()
+logInfo :: (Members '[Log] r) => String -> Sem r ()
 logInfo = Log.log . LogMessage Info
 
 -- | Log a message with severity `Warning`
-logWarning :: Members '[Log] r => String -> Sem r ()
+logWarning :: (Members '[Log] r) => String -> Sem r ()
 logWarning = Log.log . LogMessage Warning
 
 -- | Log a message with severity `Error`
-logError :: Members '[Log] r => String -> Sem r ()
+logError :: (Members '[Log] r) => String -> Sem r ()
 logError = Log.log . LogMessage Error
 
 -- | Log a message with severity `Fatal`
-logFatal :: Members '[Log] r => String -> Sem r ()
+logFatal :: (Members '[Log] r) => String -> Sem r ()
 logFatal = Log.log . LogMessage Fatal
 
 data TimingMode
@@ -119,24 +120,24 @@ data TimingMode
   | DateTime UTCTime
   | PrecisionDateTime UTCTime
 
-logPutStrLn :: Members '[Embed IO] r => LogConfig -> LogMessage -> TimingMode -> Sem r ()
+logPutStrLn :: (Members '[Embed IO] r) => LogConfig -> LogMessage -> TimingMode -> Sem r ()
 logPutStrLn logConfig logMsg
   | logMessageSeverity logMsg >= logConfigMinimumSeverity logConfig =
-    ( embed
-        . putStrLn
-        . ( \formattedTime ->
-              formatLogSeverity (logMessageSeverity logMsg)
-                <> " "
-                <> formatLogContext (logConfigContext logConfig)
-                <> " "
-                <> formattedTime
-                <> logMessageText logMsg
-          )
-    )
-      . \case
-        PrecisionDateTime now -> formatProfilingTimeForLog now <> " "
-        DateTime now -> formatTimeForLog now <> " "
-        NoTiming -> ""
+      ( embed
+          . putStrLn
+          . ( \formattedTime ->
+                formatLogSeverity (logMessageSeverity logMsg)
+                  <> " "
+                  <> formatLogContext (logConfigContext logConfig)
+                  <> " "
+                  <> formattedTime
+                  <> logMessageText logMsg
+            )
+      )
+        . \case
+          PrecisionDateTime now -> formatProfilingTimeForLog now <> " "
+          DateTime now -> formatTimeForLog now <> " "
+          NoTiming -> ""
   | otherwise = const $ pure ()
   where
     formatTimeForLog = squareBrackets . formatTime defaultTimeLocale "%F %T"
@@ -147,29 +148,29 @@ logPutStrLn logConfig logMsg
 
 -- | Runs the `Log` effect according to the `LogConfig` given.
 -- Adds a timestamp to the log output with up to 12 decimal seconds.
-runLoggingWithProfilingTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLoggingWithProfilingTime :: (Members '[Embed IO, Time] r) => LogConfig -> Sem (Log : r) a -> Sem r a
 runLoggingWithProfilingTime logConfig = interpret $
   \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . PrecisionDateTime =<< getTime
 
 -- | Runs the `Log` effect according to the `LogConfig` given.
 -- Adds a timestamp to the log output.
-runLoggingWithTime :: Members '[Embed IO, Time] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLoggingWithTime :: (Members '[Embed IO, Time] r) => LogConfig -> Sem (Log : r) a -> Sem r a
 runLoggingWithTime logConfig = interpret $
   \(Log.Log logMsg) -> logPutStrLn logConfig logMsg . DateTime =<< getTime
 
 -- | Runs the `Log` effect according to the `LogConfig` given.
-runLogging :: Members '[Embed IO] r => LogConfig -> Sem (Log : r) a -> Sem r a
+runLogging :: (Members '[Embed IO] r) => LogConfig -> Sem (Log : r) a -> Sem r a
 runLogging logConfig = interpret $
   \(Log.Log logMsg) -> logPutStrLn logConfig logMsg NoTiming
 
 -- | Suppresses the log message.
 disableLogging :: Sem (Log : r) a -> Sem r a
-disableLogging = interpret $ \Log.Log{} -> pure ()
+disableLogging = interpret $ \Log.Log {} -> pure ()
 
 -- | Convert an `Error` into a log message with `Fatal` severity.
 errorToFatalLog ::
-  Show e =>
-  Members '[Log] r =>
+  (Show e) =>
+  (Members '[Log] r) =>
   Sem (Error.Error e : r) a ->
   Sem r a
 errorToFatalLog =
@@ -182,8 +183,8 @@ errorToFatalLog =
 
 -- | Convert an `Error` into a log message with `Error` severity.
 errorToLog ::
-  Show e =>
-  Members '[Log] r =>
+  (Show e) =>
+  (Members '[Log] r) =>
   Sem (Error.Error e : r) () ->
   Sem r ()
 errorToLog =

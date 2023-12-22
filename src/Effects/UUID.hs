@@ -7,25 +7,25 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.UUID (
-  UUIDEff (..),
-  getUUID,
-  UUID,
-  runUUIDEff,
-  withConstantUUID,
-) where
+module Effects.UUID
+  ( UUIDEff (..),
+    getUUID,
+    UUID,
+    runUUIDEff,
+    withConstantUUID,
+  )
+where
 
 import Data.UUID
 import Data.UUID.V4
 import Polysemy
 
--- |
 data UUIDEff r a where
   GetUUID :: UUIDEff r UUID
 
 makeSem ''UUIDEff
 
-runUUIDEff :: Members '[Embed IO] r => Sem (UUIDEff : r) a -> Sem r a
+runUUIDEff :: (Members '[Embed IO] r) => Sem (UUIDEff : r) a -> Sem r a
 runUUIDEff = interpret $ \case
   GetUUID -> embed nextRandom
 

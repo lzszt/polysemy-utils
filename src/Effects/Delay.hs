@@ -10,11 +10,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Delay (
-  Delay (..),
-  delay,
-  runDelay,
-) where
+module Effects.Delay
+  ( Delay (..),
+    delay,
+    runDelay,
+  )
+where
 
 import Control.Concurrent
 import Data.Time
@@ -25,7 +26,7 @@ data Delay r a where
 
 makeSem ''Delay
 
-runDelay :: Members '[Embed IO] r => Sem (Delay : r) a -> Sem r a
+runDelay :: (Members '[Embed IO] r) => Sem (Delay : r) a -> Sem r a
 runDelay =
   interpret $ \case
     Delay d -> embed $ threadDelay $ round $ 1_000_000 * nominalDiffTimeToSeconds d

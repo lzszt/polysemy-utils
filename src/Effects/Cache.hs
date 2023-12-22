@@ -10,15 +10,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Cache (
-  Cache,
-  CacheType,
-  CacheStrategy (..),
-  get,
-  update,
-  isValid,
-  runCacheAsState,
-) where
+module Effects.Cache
+  ( Cache,
+    CacheType,
+    CacheStrategy (..),
+    get,
+    update,
+    isValid,
+    runCacheAsState,
+  )
+where
 
 import qualified Data.Map.Strict as Map
 import Data.Time
@@ -45,9 +46,9 @@ isValid Indefinitly _ _ = True
 isValid (CacheFor diff) cacheTime now = diffUTCTime now cacheTime <= diff
 
 runCacheAsState ::
-  Members '[Time, Log] r =>
-  Ord k =>
-  Show k =>
+  (Members '[Time, Log] r) =>
+  (Ord k) =>
+  (Show k) =>
   CacheStrategy ->
   Sem (Cache k v : r) a ->
   Sem (State.State (CacheType k v) : r) a

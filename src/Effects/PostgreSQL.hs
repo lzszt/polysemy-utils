@@ -10,27 +10,28 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.PostgreSQL (
-  PostgreSQL (..),
-  query_,
-  query,
-  execute_,
-  execute,
-  runPostgreSQL,
-  runPostgreSQLI,
-  Query,
-  FromRow (..),
-  ToRow (..),
-  ToField (..),
-  FromField (..),
-  Only (..),
-  PostgreSQLError (..),
-  Error.Error,
-  Resource,
-  -- | reexports from postgresql-simple
-  DB.defaultConnectInfo,
-  DB.ConnectInfo (..),
-) where
+module Effects.PostgreSQL
+  ( PostgreSQL (..),
+    query_,
+    query,
+    execute_,
+    execute,
+    runPostgreSQL,
+    runPostgreSQLI,
+    Query,
+    FromRow (..),
+    ToRow (..),
+    ToField (..),
+    FromField (..),
+    Only (..),
+    PostgreSQLError (..),
+    Error.Error,
+    Resource,
+    -- | reexports from postgresql-simple
+    DB.defaultConnectInfo,
+    DB.ConnectInfo (..),
+  )
+where
 
 import qualified Control.Exception as Ex
 import Database.PostgreSQL.Simple (ConnectInfo, Connection, Only (..), Query, close, connect)
@@ -47,8 +48,8 @@ import Polysemy.Resource
 
 data PostgreSQL m r where
   Query :: (FromRow r, ToRow q) => Query -> q -> PostgreSQL m [r]
-  Query_ :: FromRow r => Query -> PostgreSQL m [r]
-  Execute :: ToRow q => Query -> q -> PostgreSQL m Int64
+  Query_ :: (FromRow r) => Query -> PostgreSQL m [r]
+  Execute :: (ToRow q) => Query -> q -> PostgreSQL m Int64
   Execute_ :: Query -> PostgreSQL m Int64
 
 makeSem ''PostgreSQL
@@ -60,10 +61,10 @@ data PostgreSQLError
   | PSQLSqlError DB.SqlError
   deriving (Show)
 
-withConnection :: Members '[Embed IO] r => ConnectInfo -> (Connection -> Sem (Resource : r) a) -> Sem r a
+withConnection :: (Members '[Embed IO] r) => ConnectInfo -> (Connection -> Sem (Resource : r) a) -> Sem r a
 withConnection connectInfo = resourceToIO . bracket (embed $ connect connectInfo) (embed . close)
 
-runPostgreSQL :: Members '[Embed IO, Error.Error PostgreSQLError] r => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
+runPostgreSQL :: (Members '[Embed IO, Error.Error PostgreSQLError] r) => ConnectInfo -> Sem (PostgreSQL : Resource : r) a -> Sem r a
 runPostgreSQL connectInfo act =
   withConnection connectInfo $
     \conn ->
@@ -76,7 +77,7 @@ runPostgreSQL connectInfo act =
         )
         act
 
-runPostgreSQLI :: Members '[Embed IO, Error.Error PostgreSQLError, Input Connection] r => Sem (PostgreSQL : r) a -> Sem r a
+runPostgreSQLI :: (Members '[Embed IO, Error.Error PostgreSQLError, Input Connection] r) => Sem (PostgreSQL : r) a -> Sem r a
 runPostgreSQLI act = do
   conn <- input
   interpret
@@ -88,13 +89,13 @@ runPostgreSQLI act = do
     )
     act
 
-postgreSQLErrorFromException :: Members '[Embed IO, Error.Error PostgreSQLError] r => IO a -> Sem r a
+postgreSQLErrorFromException :: (Members '[Embed IO, Error.Error PostgreSQLError] r) => IO a -> Sem r a
 postgreSQLErrorFromException act =
   Error.fromEitherM $
     Ex.catches
       (Right <$> act)
-      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex
-      , Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex
-      , Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex
-      , Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
+      [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
+        Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
       ]

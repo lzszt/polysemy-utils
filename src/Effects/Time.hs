@@ -10,13 +10,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Time (
-  Time (..),
-  getTime,
-  runTime,
-  runFixedTime,
-  runFakeTime,
-) where
+module Effects.Time
+  ( Time (..),
+    getTime,
+    runTime,
+    runFixedTime,
+    runFakeTime,
+  )
+where
 
 import Data.Time
 import Effects.Delay
@@ -30,7 +31,7 @@ data Time r a where
 makeSem ''Time
 
 -- | Run `Time` effect via `Embed IO`
-runTime :: Members '[Embed IO] r => Sem (Time : r) a -> Sem r a
+runTime :: (Members '[Embed IO] r) => Sem (Time : r) a -> Sem r a
 runTime =
   interpret $ \case
     GetTime -> embed getCurrentTime
