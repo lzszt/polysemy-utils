@@ -26,6 +26,7 @@ library
                     , Effects.Delay
                     , Effects.Logging
                     , Effects.PostgreSQL
+                    , Effects.Request
                     , Effects.Time
                     , Effects.UUID
     other-modules:
