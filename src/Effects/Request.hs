@@ -104,20 +104,23 @@ rateLimitedRequest' ::
   Sem (Request x y : r) a ->
   Sem (Request x y : r) a
 rateLimitedRequest' rateSpecs requestCost =
-  reinterpret $ \case
-    Request x -> do
-      now <- getTime
-      potentialRequestDelay <- requestDelay rateSpecs requestCost (requestCost x)
-      logDebug $ "Rate limiting delay: " <> show potentialRequestDelay
-      case potentialRequestDelay of
-        Nothing -> do
-          State.modify' ((now, x) :)
-          request x
-        Just d -> do
-          delay d
-          delayedNow <- getTime
-          State.modify' ((delayedNow, x) :)
-          request x
+  let longestInterval = maximum $ NE.map interval rateSpecs
+   in reinterpret $ \case
+        Request x -> do
+          now <- getTime
+          potentialRequestDelay <- requestDelay rateSpecs requestCost (requestCost x)
+          logDebug $ "Rate limiting delay: " <> show potentialRequestDelay
+          case potentialRequestDelay of
+            Nothing -> do
+              let startOfLongestInterval = addUTCTime (negate longestInterval) now
+              State.modify' (((now, x) :) . filter ((>= startOfLongestInterval) . fst))
+              request x
+            Just d -> do
+              delay d
+              delayedNow <- getTime
+              let startOfLongestInterval = addUTCTime (negate longestInterval) delayedNow
+              State.modify' (((delayedNow, x) :) . filter ((>= startOfLongestInterval) . fst))
+              request x
 
 rateLimitedRequest ::
   ( Members
