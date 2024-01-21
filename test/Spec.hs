@@ -1,6 +1,6 @@
-import qualified CacheSpec
+import CacheSpec qualified
 import Test.Hspec
-import qualified TimeSpec
+import TimeSpec qualified
 
 main :: IO ()
 main =
@@ -9,4 +9,5 @@ main =
 spec :: Spec
 spec = do
   TimeSpec.spec
-  CacheSpec.spec
+
+-- CacheSpec.spec

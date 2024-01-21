@@ -6,5 +6,8 @@ import Effects.Cache
 import Test.QuickCheck
 import Test.QuickCheck.Instances ()
 
-instance Arbitrary CacheStrategy where
-  arbitrary = oneof [pure Indefinitly, CacheFor . getPositive <$> arbitrary]
+instance Arbitrary (CacheStrategy Indef) where
+  arbitrary = pure Indefinitly
+
+instance Arbitrary (CacheStrategy Finite) where
+  arbitrary = CacheFor . getPositive <$> arbitrary

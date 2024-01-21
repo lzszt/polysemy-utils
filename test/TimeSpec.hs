@@ -10,7 +10,10 @@ import Utils ()
 
 spec :: Spec
 spec =
-  describe "runFixedTime" $
-    prop "always returns the given time" $ \fixedTime ->
-      run (runFixedTime fixedTime getTime)
+  describe "runFixedTime" $ do
+    prop "always returns the given time" $ \fixedTime timeZone ->
+      run (runFixedTime (fixedTime, timeZone) getTime)
         `shouldBe` fixedTime
+    prop "always returns the given time zone" $ \fixedTime timeZone ->
+      run (runFixedTime (fixedTime, timeZone) getCurrentTimeZone)
+        `shouldBe` timeZone
