@@ -12,16 +12,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Effects.Cache
-  ( Cache,
-    CacheType,
-    CacheStrategy (..),
-    get,
-    update,
-    isValid,
-    runCacheAsState,
-  )
-where
+module Effects.Cache where
 
 import Data.Function
 import Data.List
