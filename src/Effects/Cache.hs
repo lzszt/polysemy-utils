@@ -39,15 +39,15 @@ data Fixed rs
 
 data Finite
 
-type family CacheContent s k v where
-  CacheContent Finite k v = (UTCTime, v)
-  CacheContent Indef k v = v
-  CacheContent (Fixed rs) k v = (k, ReplacementStrategyInfo rs, v)
+type family CacheContent s v where
+  CacheContent Finite v = (UTCTime, v)
+  CacheContent Indef v = v
+  CacheContent (Fixed rs) v = (ReplacementStrategyInfo rs, v)
 
 type family CacheType s k v where
-  CacheType Finite k v = Map.Map k (CacheContent Finite k v)
-  CacheType Indef k v = Map.Map k (CacheContent Indef k v)
-  CacheType (Fixed rs) k v = [CacheContent (Fixed rs) k v]
+  CacheType Finite k v = Map.Map k (CacheContent Finite v)
+  CacheType Indef k v = Map.Map k (CacheContent Indef v)
+  CacheType (Fixed rs) k v = [(k, CacheContent (Fixed rs) v)]
 
 data Oldest
 
@@ -94,12 +94,12 @@ runCacheAsState = \case
   FixedSize cacheSize rs ->
     reinterpret $ \case
       Get k -> do
-        cacheEntry <- find (\(k', _, _) -> k' == k) <$> State.get
+        cacheEntry <- find ((== k) . fst) <$> State.get
         case cacheEntry of
           Nothing -> do
             logDebug $ "Cache miss for: " <> show k
             pure Nothing
-          Just (_, _, v) -> do
+          Just (_, (_, v)) -> do
             logDebug $ "Cache hit for: " <> show k
             pure $ Just v
       Update k v -> do
@@ -108,10 +108,10 @@ runCacheAsState = \case
         if cacheResidency == cacheSize
           then do
             logDebug $ "Updated cache for: " <> show k
-            State.modify' (((k, newInfo, v) :) . removeByReplacementStrategy rs)
+            State.modify' (((k, (newInfo, v)) :) . removeByReplacementStrategy rs)
           else do
             logDebug $ "Updated cache for: " <> show k
-            State.modify' ((k, newInfo, v) :)
+            State.modify' ((k, (newInfo, v)) :)
   CacheFor cacheDuration ->
     reinterpret $ \case
       Get k -> do
@@ -140,11 +140,11 @@ runStateAsFile stateFile emptyState = interpret $ \case
   State.Get -> embed ((Serialise.deserialise . LBS.fromStrict <$> BS.readFile stateFile) `catch` (\(_ :: SomeException) -> pure emptyState))
   State.Put s -> embed $ LBS.writeFile stateFile $ Serialise.serialise s
 
-findKey :: (Ord k) => CacheStrategy s -> k -> v -> CacheType s k v -> Maybe (CacheContent s k v)
+findKey :: (Ord k) => CacheStrategy s -> k -> v -> CacheType s k v -> Maybe (CacheContent s v)
 findKey cs k _ = case cs of
   Indefinitly -> Map.lookup k
-  FixedSize _ _ -> find (\(k', _, _) -> k' == k)
-  CacheFor _ -> Map.lookup k
+  FixedSize {} -> fmap snd . find ((== k) . fst)
+  CacheFor {} -> Map.lookup k
 
 fixedInitialInfo :: (Members '[Time] r) => ReplacementStrategy rs -> Sem r (ReplacementStrategyInfo rs)
 fixedInitialInfo = \case
@@ -153,24 +153,24 @@ fixedInitialInfo = \case
 
 removeByReplacementStrategy ::
   ReplacementStrategy rs ->
-  [(a, ReplacementStrategyInfo rs, c)] ->
-  [(a, ReplacementStrategyInfo rs, c)]
+  [(a, (ReplacementStrategyInfo rs, c))] ->
+  [(a, (ReplacementStrategyInfo rs, c))]
 removeByReplacementStrategy = \case
   Oldest -> removeOldest
   LeastUsed -> removeLeastUsed
   where
     removeOldest xs = go xs
       where
-        go (y@(_, t, _) : ys)
+        go (y@(_, (t, _)) : ys)
           | t == oldestTime = ys
           | otherwise = y : go ys
         go [] = error "Cannot remove element from empty cache"
-        (_, oldestTime, _) = minimumBy (compare `on` (\(_, t, _) -> t)) xs
+        (_, (oldestTime, _)) = minimumBy (compare `on` (fst . snd)) xs
 
     removeLeastUsed xs = go xs
       where
-        go (y@(_, t, _) : ys)
+        go (y@(_, (t, _)) : ys)
           | t == lowestUsage = ys
           | otherwise = y : go ys
         go [] = error "Cannot remove element from empty cache"
-        (_, lowestUsage, _) = minimumBy (compare `on` (\(_, t, _) -> t)) xs
+        (_, (lowestUsage, _)) = minimumBy (compare `on` (fst . snd)) xs
