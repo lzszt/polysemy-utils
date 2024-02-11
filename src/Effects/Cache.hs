@@ -14,6 +14,10 @@
 
 module Effects.Cache where
 
+import Codec.Serialise qualified as Serialise
+import Control.Exception
+import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as LBS
 import Data.Function
 import Data.List
 import Data.Map.Strict qualified as Map
@@ -130,6 +134,11 @@ runCacheAsState = \case
         now <- getTime
         logDebug $ "Updated cache for: " <> show k
         State.modify' (Map.insert k (now, v))
+
+runStateAsFile :: (Members '[Embed IO] r, Serialise.Serialise s) => FilePath -> s -> Sem (State.State s : r) a -> Sem r a
+runStateAsFile stateFile emptyState = interpret $ \case
+  State.Get -> embed ((Serialise.deserialise . LBS.fromStrict <$> BS.readFile stateFile) `catch` (\(_ :: SomeException) -> pure emptyState))
+  State.Put s -> embed $ LBS.writeFile stateFile $ Serialise.serialise s
 
 findKey :: (Ord k) => CacheStrategy s -> k -> v -> CacheType s k v -> Maybe (CacheContent s k v)
 findKey cs k _ = case cs of

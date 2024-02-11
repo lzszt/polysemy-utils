@@ -44,6 +44,8 @@ library
                     , postgresql-simple
                     , time
                     , uuid
+                    , serialise
+                    , bytestring
     hs-source-dirs:   src
     default-language: GHC2021
     
