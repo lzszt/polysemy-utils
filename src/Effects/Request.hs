@@ -48,8 +48,8 @@ data RateSpec a = RateSpec
     numberRequests :: a
   }
 
-saveMaximum :: (Ord a) => [a] -> Maybe a
-saveMaximum = go Nothing
+safeMaximum :: (Ord a) => [a] -> Maybe a
+safeMaximum = go Nothing
   where
     go acc [] = acc
     go Nothing (x : xs) = go (Just x) xs
@@ -75,7 +75,7 @@ requestDelay rateSpecs requestCost nextRequestCost = do
   now <- getTime
   requestTimes <- State.get
   pure
-    $ saveMaximum
+    $ safeMaximum
     $ mapMaybe
       ( \RateSpec {..} ->
           let intervalStart = addUTCTime (negate interval) now
