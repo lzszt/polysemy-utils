@@ -23,6 +23,8 @@ module Effects.Logging
     logWarning,
     logError,
     logFatal,
+    failToLog,
+    failToFatalLog,
   )
 where
 
@@ -36,6 +38,7 @@ import Data.Time
 import Effects.Time
 import Polysemy
 import qualified Polysemy.Error as Error
+import Polysemy.Fail qualified as Fail
 
 -- | Severity of the log message
 data Severity
@@ -193,3 +196,23 @@ errorToLog =
       Left e ->
         logError $ show e
       Right x -> pure x
+
+failToLog ::
+  (Members '[Log] r) =>
+  Sem (Fail.Fail : r) () ->
+  Sem r ()
+failToLog =
+  Fail.runFail >=> \case
+    Left e -> logError e
+    Right x -> pure x
+
+failToFatalLog ::
+  (Members '[Log] r) =>
+  Sem (Fail.Fail : r) a ->
+  Sem r a
+failToFatalLog =
+  Fail.runFail >=> \case
+    Left e -> do
+      logFatal e
+      error e
+    Right x -> pure x
