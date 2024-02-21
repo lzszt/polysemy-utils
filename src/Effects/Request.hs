@@ -21,13 +21,20 @@ data Request x y r a where
 
 makeSem ''Request
 
-runRequest ::
+embedRequest ::
   (Members '[Embed m] r) =>
   (x -> m y) ->
   Sem (Request x y : r) a ->
   Sem r a
-runRequest interpreterFn = interpret $ \case
-  Request x -> embed $ interpreterFn x
+embedRequest interpreterFn = interpret $
+  \(Request x) -> embed $ interpreterFn x
+
+runRequest ::
+  (x -> Sem r y) ->
+  Sem (Request x y : r) a ->
+  Sem r a
+runRequest interpreterFn = interpret $
+  \(Request x) -> interpreterFn x
 
 cachedRequest ::
   Sem (Request x y : r) a ->
