@@ -64,9 +64,14 @@ safeMaximum = go Nothing
       | x > y = go (Just x) xs
       | otherwise = go acc xs
 
+data RequestInfo a = RequestInfo
+  { requestTime :: UTCTime,
+    requestData :: a
+  }
+
 requestDelay ::
   ( Members
-      '[ State.State [(UTCTime, x)],
+      '[ State.State [RequestInfo x],
          Time,
          Log
        ]
@@ -74,30 +79,30 @@ requestDelay ::
   ) =>
   (Num l) =>
   (Ord l) =>
-  NE.NonEmpty (RateSpec l) ->
+  [RateSpec l] ->
   (x -> l) ->
   l ->
   Sem r (Maybe NominalDiffTime)
 requestDelay rateSpecs requestCost nextRequestCost = do
   now <- getTime
-  requestTimes <- State.get
-  pure
-    $ safeMaximum
-    $ mapMaybe
-      ( \RateSpec {..} ->
-          let intervalStart = addUTCTime (negate interval) now
-              requestsInInterval = filter ((>= intervalStart) . fst) requestTimes
-              earliestRequestInInterval = minimum $ map fst requestsInInterval
-              requestsInIntervalCost = nextRequestCost + sum (map (requestCost . snd) requestsInInterval)
-           in if requestsInIntervalCost < numberRequests
-                then Nothing
-                else Just $ diffUTCTime earliestRequestInInterval intervalStart
-      )
-    $ NE.toList rateSpecs
+  requests <- State.get
+  pure $
+    safeMaximum $
+      mapMaybe
+        ( \RateSpec {..} ->
+            let intervalStart = addUTCTime (negate interval) now
+                requestsInInterval = filter ((>= intervalStart) . requestTime) requests
+                earliestRequestInInterval = minimum $ map requestTime requestsInInterval
+                requestsInIntervalCost = nextRequestCost + sum (map (requestCost . requestData) requestsInInterval)
+             in if requestsInIntervalCost < numberRequests
+                  then Nothing
+                  else Just $ diffUTCTime earliestRequestInInterval intervalStart
+        )
+        rateSpecs
 
 rateLimitedRequest' ::
   ( Members
-      '[ State.State [(UTCTime, x)],
+      '[ State.State [RequestInfo x],
          Time,
          Delay,
          Log
@@ -106,12 +111,12 @@ rateLimitedRequest' ::
   ) =>
   (Num l) =>
   (Ord l) =>
-  NE.NonEmpty (RateSpec l) ->
+  [RateSpec l] ->
   (x -> l) ->
   Sem (Request x y : r) a ->
   Sem (Request x y : r) a
 rateLimitedRequest' rateSpecs requestCost =
-  let longestInterval = maximum $ NE.map interval rateSpecs
+  let longestInterval = maximum $ map interval rateSpecs
    in reinterpret $ \case
         Request x -> do
           now <- getTime
@@ -120,18 +125,18 @@ rateLimitedRequest' rateSpecs requestCost =
           case potentialRequestDelay of
             Nothing -> do
               let startOfLongestInterval = addUTCTime (negate longestInterval) now
-              State.modify' (((now, x) :) . filter ((>= startOfLongestInterval) . fst))
+              State.modify' ((RequestInfo now x :) . filter ((>= startOfLongestInterval) . requestTime))
               request x
             Just d -> do
               delay d
               delayedNow <- getTime
               let startOfLongestInterval = addUTCTime (negate longestInterval) delayedNow
-              State.modify' (((delayedNow, x) :) . filter ((>= startOfLongestInterval) . fst))
+              State.modify' ((RequestInfo delayedNow x :) . filter ((>= startOfLongestInterval) . requestTime))
               request x
 
 rateLimitedRequest ::
   ( Members
-      '[ State.State [(UTCTime, x)],
+      '[ State.State [RequestInfo x],
          Time,
          Delay,
          Log
@@ -140,7 +145,7 @@ rateLimitedRequest ::
   ) =>
   (Num l) =>
   (Ord l) =>
-  NE.NonEmpty (RateSpec l) ->
+  [RateSpec l] ->
   Sem (Request x y : r) a ->
   Sem (Request x y : r) a
 rateLimitedRequest rateSpecs = rateLimitedRequest' rateSpecs (const 1)
