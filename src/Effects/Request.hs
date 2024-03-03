@@ -6,7 +6,6 @@
 
 module Effects.Request where
 
-import Data.List.NonEmpty qualified as NE
 import Data.Maybe
 import Data.Time
 import Effects.Cache
