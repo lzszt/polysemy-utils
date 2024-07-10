@@ -5,31 +5,30 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Effects.Ntfy
-  ( Notification (..),
-    Ntfy (..),
-    notify,
-    runNtfy,
-    fakeNtfy,
-  )
-where
+module Effects.Ntfy (
+  Notification (..),
+  Ntfy (..),
+  notify,
+  runNtfy,
+  fakeNtfy,
+) where
 
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as Char8
-import Network.HTTP.Client.Conduit
-  ( RequestBody (RequestBodyBS),
-  )
+import Network.HTTP.Client.Conduit (
+  RequestBody (RequestBodyBS),
+ )
 import Network.HTTP.Simple
 import Network.HTTP.Types.Header (HeaderName)
 import Polysemy
 
 data Notification = Notification
-  { notificationTitle :: Maybe String,
-    notificationTag :: Maybe String,
-    notificationActions :: Maybe String,
-    notificationClick :: Maybe String,
-    notificationTopic :: String,
-    notificationMessage :: String
+  { notificationTitle :: Maybe String
+  , notificationTag :: Maybe String
+  , notificationActions :: Maybe String
+  , notificationClick :: Maybe String
+  , notificationTopic :: String
+  , notificationMessage :: String
   }
   deriving (Show)
 
@@ -43,7 +42,7 @@ maybeSetHeader headerName f = maybe id (setRequestHeader headerName . f)
 
 runNtfy :: (Members '[Embed IO] r) => String -> Sem (Ntfy : r) a -> Sem r a
 runNtfy ntfyBaseUrl = interpret $ \case
-  Notify Notification {..} -> do
+  Notify Notification{..} -> do
     let req =
           maybeSetHeader "Title" (pure . Char8.pack) notificationTitle $
             maybeSetHeader "Tags" (pure . Char8.pack) notificationTag $

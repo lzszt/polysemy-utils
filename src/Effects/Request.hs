@@ -50,8 +50,8 @@ cachedRequest =
           pure y
 
 data RateSpec a = RateSpec
-  { interval :: NominalDiffTime,
-    numberRequests :: a
+  { interval :: NominalDiffTime
+  , numberRequests :: a
   }
 
 safeMaximum :: (Ord a) => [a] -> Maybe a
@@ -64,15 +64,15 @@ safeMaximum = go Nothing
       | otherwise = go acc xs
 
 data RequestInfo a = RequestInfo
-  { requestTime :: UTCTime,
-    requestData :: a
+  { requestTime :: UTCTime
+  , requestData :: a
   }
 
 requestDelay ::
   ( Members
-      '[ State.State [RequestInfo x],
-         Time,
-         Log
+      '[ State.State [RequestInfo x]
+       , Time
+       , Log
        ]
       r
   ) =>
@@ -88,7 +88,7 @@ requestDelay rateSpecs requestCost nextRequestCost = do
   pure $
     safeMaximum $
       mapMaybe
-        ( \RateSpec {..} ->
+        ( \RateSpec{..} ->
             let intervalStart = addUTCTime (negate interval) now
                 requestsInInterval = filter ((>= intervalStart) . requestTime) requests
                 earliestRequestInInterval = minimum $ map requestTime requestsInInterval
@@ -101,10 +101,10 @@ requestDelay rateSpecs requestCost nextRequestCost = do
 
 rateLimitedRequest' ::
   ( Members
-      '[ State.State [RequestInfo x],
-         Time,
-         Delay,
-         Log
+      '[ State.State [RequestInfo x]
+       , Time
+       , Delay
+       , Log
        ]
       r
   ) =>
@@ -135,10 +135,10 @@ rateLimitedRequest' rateSpecs requestCost =
 
 rateLimitedRequest ::
   ( Members
-      '[ State.State [RequestInfo x],
-         Time,
-         Delay,
-         Log
+      '[ State.State [RequestInfo x]
+       , Time
+       , Delay
+       , Log
        ]
       r
   ) =>

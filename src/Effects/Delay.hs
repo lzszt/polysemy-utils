@@ -10,12 +10,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Delay
-  ( Delay (..),
-    delay,
-    runDelay,
-  )
-where
+module Effects.Delay (
+  Delay (..),
+  delay,
+  runDelay,
+) where
 
 import Control.Concurrent
 import Data.Time

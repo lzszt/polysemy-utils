@@ -10,15 +10,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Time
-  ( Time (..),
-    getTime,
-    Effects.Time.getCurrentTimeZone,
-    runTime,
-    runFixedTime,
-    runFakeTime,
-  )
-where
+module Effects.Time (
+  Time (..),
+  getTime,
+  Effects.Time.getCurrentTimeZone,
+  runTime,
+  runFixedTime,
+  runFakeTime,
+) where
 
 import Data.Time
 import Effects.Delay

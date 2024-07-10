@@ -10,39 +10,38 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.PostgreSQL
-  ( PostgreSQL (..),
-    query_,
-    query,
-    execute_,
-    execute,
-    runPostgreSQL,
-    runPostgreSQLI,
-    Query,
-    FromRow (..),
-    ToRow (..),
-    ToField (..),
-    FromField (..),
-    Only (..),
-    PostgreSQLError (..),
-    Error.Error,
-    Resource,
-    -- | reexports from postgresql-simple
-    DB.defaultConnectInfo,
-    DB.ConnectInfo (..),
-  )
-where
+module Effects.PostgreSQL (
+  PostgreSQL (..),
+  query_,
+  query,
+  execute_,
+  execute,
+  runPostgreSQL,
+  runPostgreSQLI,
+  Query,
+  FromRow (..),
+  ToRow (..),
+  ToField (..),
+  FromField (..),
+  Only (..),
+  PostgreSQLError (..),
+  Error.Error,
+  Resource,
+  -- | reexports from postgresql-simple
+  DB.defaultConnectInfo,
+  DB.ConnectInfo (..),
+) where
 
-import qualified Control.Exception as Ex
+import Control.Exception qualified as Ex
 import Database.PostgreSQL.Simple (ConnectInfo, Connection, Only (..), Query, close, connect)
-import qualified Database.PostgreSQL.Simple as DB
+import Database.PostgreSQL.Simple qualified as DB
 import Database.PostgreSQL.Simple.FromField
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.ToField
 import Database.PostgreSQL.Simple.ToRow
 import GHC.Int (Int64)
 import Polysemy
-import qualified Polysemy.Error as Error
+import Polysemy.Error qualified as Error
 import Polysemy.Input
 import Polysemy.Resource
 
@@ -95,8 +94,8 @@ postgreSQLErrorFromException act =
     Error.fromEitherM $
       Ex.catches
         (Right <$> act)
-        [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex,
-          Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex,
-          Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex,
-          Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
+        [ Ex.Handler $ \ex -> pure $ Left $ PSQLFormatError ex
+        , Ex.Handler $ \ex -> pure $ Left $ PSQLQueryError ex
+        , Ex.Handler $ \ex -> pure $ Left $ PSQLResultError ex
+        , Ex.Handler $ \ex -> pure $ Left $ PSQLSqlError ex
         ]

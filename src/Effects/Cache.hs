@@ -143,8 +143,8 @@ runStateAsFile stateFile emptyState = interpret $ \case
 findKey :: (Ord k) => CacheStrategy s -> k -> v -> CacheType s k v -> Maybe (CacheContent s v)
 findKey cs k _ = case cs of
   Indefinitly -> Map.lookup k
-  FixedSize {} -> fmap snd . find ((== k) . fst)
-  CacheFor {} -> Map.lookup k
+  FixedSize{} -> fmap snd . find ((== k) . fst)
+  CacheFor{} -> Map.lookup k
 
 fixedInitialInfo :: (Members '[Time] r) => ReplacementStrategy rs -> Sem r (ReplacementStrategyInfo rs)
 fixedInitialInfo = \case

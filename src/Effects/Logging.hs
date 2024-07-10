@@ -4,40 +4,39 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Effects.Logging
-  ( Severity (..),
-    parseSeverity,
-    Log,
-    LogConfig,
-    LogConfigF (..),
-    WithCtx (..),
-    defaultLogConfig,
-    runLogging,
-    runLoggingWithTime,
-    runLoggingWithProfilingTime,
-    disableLogging,
-    errorToFatalLog,
-    errorToLog,
-    logDebug,
-    logInfo,
-    logWarning,
-    logError,
-    logFatal,
-    failToLog,
-    failToFatalLog,
-  )
-where
+module Effects.Logging (
+  Severity (..),
+  parseSeverity,
+  Log,
+  LogConfig,
+  LogConfigF (..),
+  WithCtx (..),
+  defaultLogConfig,
+  runLogging,
+  runLoggingWithTime,
+  runLoggingWithProfilingTime,
+  disableLogging,
+  errorToFatalLog,
+  errorToLog,
+  logDebug,
+  logInfo,
+  logWarning,
+  logError,
+  logFatal,
+  failToLog,
+  failToFatalLog,
+) where
 
-import qualified Colog.Polysemy.Effect as Log
+import Colog.Polysemy.Effect qualified as Log
 import Control.Monad
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
+import Data.List.NonEmpty qualified as NonEmpty
 import Data.Proxy
 import Data.Time
 import Effects.Time
 import Polysemy
-import qualified Polysemy.Error as Error
+import Polysemy.Error qualified as Error
 import Polysemy.Fail qualified as Fail
 
 -- | Severity of the log message
@@ -57,8 +56,8 @@ parseSeverity s =
     _ -> Nothing
 
 data LogMessage = LogMessage
-  { logMessageSeverity :: Severity,
-    logMessageText :: String
+  { logMessageSeverity :: Severity
+  , logMessageText :: String
   }
 
 -- | Type of the logging effect
@@ -67,8 +66,8 @@ type Log = Log.Log LogMessage
 -- | A config for logging.
 -- Contains a context `String` and a minimun `Severity`.
 data LogConfigF f = LogConfig
-  { logConfigContext :: f String,
-    logConfigMinimumSeverity :: Severity
+  { logConfigContext :: f String
+  , logConfigMinimumSeverity :: Severity
   }
 
 instance Show LogConfig where
@@ -89,10 +88,10 @@ class WithCtx c where
   addContext :: LogConfigF c -> String -> LogConfig
 
 instance WithCtx Proxy where
-  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.:| []}
+  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.:| []}
 
 instance WithCtx NonEmpty where
-  addContext logConfig ctx = logConfig {logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
+  addContext logConfig ctx = logConfig{logConfigContext = ctx NonEmpty.<| logConfigContext logConfig}
 
 -- | A complete `LogConfig` which can be used to run
 -- the `Log` effect.
@@ -168,7 +167,7 @@ runLogging logConfig = interpret $
 
 -- | Suppresses the log message.
 disableLogging :: Sem (Log : r) a -> Sem r a
-disableLogging = interpret $ \Log.Log {} -> pure ()
+disableLogging = interpret $ \Log.Log{} -> pure ()
 
 -- | Convert an `Error` into a log message with `Fatal` severity.
 errorToFatalLog ::
