@@ -33,6 +33,7 @@ data Notification = Notification
   deriving (Show)
 
 data Ntfy m a where
+  -- | Send a `Notification` via the `Ntfy` effect.
   Notify :: Notification -> Ntfy m ()
 
 makeSem ''Ntfy
@@ -40,6 +41,7 @@ makeSem ''Ntfy
 maybeSetHeader :: HeaderName -> (a -> [ByteString]) -> Maybe a -> Request -> Request
 maybeSetHeader headerName f = maybe id (setRequestHeader headerName . f)
 
+-- | Interpret the `Ntfy` effect by posting to the specified base url.
 runNtfy :: (Members '[Embed IO] r) => String -> Sem (Ntfy : r) a -> Sem r a
 runNtfy ntfyBaseUrl = interpret $ \case
   Notify Notification{..} -> do
@@ -55,5 +57,6 @@ runNtfy ntfyBaseUrl = interpret $ \case
     _ <- httpNoBody req
     pure ()
 
+-- | Interpret the `Ntfy` effect without running any action.
 fakeNtfy :: Sem (Ntfy : r) a -> Sem r a
 fakeNtfy = interpret $ \(Notify _) -> pure ()
