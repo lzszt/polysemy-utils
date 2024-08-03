@@ -22,50 +22,56 @@ maintainer:         felix.leitz92@gmail.com
 extra-source-files: CHANGELOG.md
 
 library
-    exposed-modules:  Effects.Cache
-                    , Effects.Delay
-                    , Effects.Logging
-                    , Effects.Ntfy
-                    , Effects.PostgreSQL
-                    , Effects.Request
-                    , Effects.Time
-                    , Effects.UUID
-    other-modules:
-    ghc-options:      -Wall
-                      -O2
-                      -haddock
-                      -flate-specialise
-                      -fspecialise-aggressively
-                      -fplugin=Polysemy.Plugin
-    build-depends:    base
-                    , containers
-                    , co-log-polysemy
-                    , polysemy
-                    , polysemy-plugin
-                    , postgresql-simple
-                    , time
-                    , uuid
-                    , serialise
-                    , bytestring
-                    , http-conduit
-                    , http-types
-    hs-source-dirs:   src
-    default-language: GHC2021
-    
+  exposed-modules:
+    Effects.Cache
+    Effects.Delay
+    Effects.Logging
+    Effects.Ntfy
+    Effects.PostgreSQL
+    Effects.Request
+    Effects.Time
+    Effects.UUID
+
+  other-modules:
+  ghc-options:
+    -Wall -O2 -haddock -flate-specialise -fspecialise-aggressively
+    -fplugin=Polysemy.Plugin
+
+  build-depends:
+    , base
+    , bytestring
+    , co-log-polysemy
+    , containers
+    , http-conduit
+    , http-types
+    , polysemy
+    , polysemy-plugin
+    , postgresql-simple
+    , serialise
+    , time
+    , uuid
+
+  hs-source-dirs:   src
+  default-language: GHC2021
+
 test-suite polysemy-utils-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
-  other-modules:    TimeSpec
-                  , CacheSpec
-                  , Utils
+  other-modules:
+    CacheSpec
+    TimeSpec
+    Utils
+
   hs-source-dirs:   test
   ghc-options:      -Wall
-  build-depends:    base
-                  , containers
-                  , hspec
-                  , polysemy
-                  , polysemy-utils
-                  , time
-                  , quickcheck-instances
-                  , QuickCheck
+  build-depends:
+    , base
+    , containers
+    , hspec
+    , polysemy
+    , polysemy-utils
+    , QuickCheck
+    , quickcheck-instances
+    , time
+
   default-language: GHC2021
