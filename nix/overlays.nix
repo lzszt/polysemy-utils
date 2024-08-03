@@ -1,7 +1,8 @@
 let
   customHaskellPackages = self: super: {
     haskellPackages = super.haskellPackages.override {
-      overrides = hself: hsuper:
+      overrides =
+        hself: hsuper:
         let
           dontCheck = super.haskell.lib.dontCheck;
           dontHaddock = super.haskell.lib.dontHaddock;
@@ -9,18 +10,19 @@ let
           # Disable Haddock generation and profiling by default. The former
           # can be done via cabal, while the latter should be enabled on
           # demand.
-          defaultMod = drv:
-            super.haskell.lib.dontHaddock
-            (super.haskell.lib.disableLibraryProfiling drv);
+          defaultMod = drv: super.haskell.lib.dontHaddock (super.haskell.lib.disableLibraryProfiling drv);
 
           polysemy-utils-src = self.nix-gitignore.gitignoreSource [
             "*.git"
             "dist"
             "dist-newstyle"
           ] ../.;
-          polysemy-utils =
-            hself.callCabal2nix "polysemy-utils" polysemy-utils-src { };
-        in { inherit polysemy-utils; };
+          polysemy-utils = hself.callCabal2nix "polysemy-utils" polysemy-utils-src { };
+        in
+        {
+          inherit polysemy-utils;
+        };
     };
   };
-in [ customHaskellPackages ]
+in
+[ customHaskellPackages ]
