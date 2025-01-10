@@ -16,6 +16,7 @@ module Effects.PostgreSQL (
   query,
   execute_,
   execute,
+  executeMany,
   runPostgreSQL,
   runPostgreSQLI,
   Query,
@@ -50,6 +51,7 @@ data PostgreSQL m r where
   Query_ :: (FromRow r) => Query -> PostgreSQL m [r]
   Execute :: (ToRow q) => Query -> q -> PostgreSQL m Int64
   Execute_ :: Query -> PostgreSQL m Int64
+  ExecuteMany :: (ToRow q) => Query -> [q] -> PostgreSQL m Int64
 
 makeSem ''PostgreSQL
 
@@ -73,6 +75,7 @@ runPostgreSQL connectInfo act =
             Query_ queryStr -> postgreSQLErrorFromException $ DB.query_ conn queryStr
             Execute queryStr queryRow -> postgreSQLErrorFromException $ DB.execute conn queryStr queryRow
             Execute_ queryStr -> postgreSQLErrorFromException $ DB.execute_ conn queryStr
+            ExecuteMany queryStr queryRows -> postgreSQLErrorFromException $ DB.executeMany conn queryStr queryRows
         )
         act
 
@@ -85,6 +88,7 @@ runPostgreSQLI act = do
         Query_ queryStr -> postgreSQLErrorFromException $ DB.query_ conn queryStr
         Execute queryStr queryRow -> postgreSQLErrorFromException $ DB.execute conn queryStr queryRow
         Execute_ queryStr -> postgreSQLErrorFromException $ DB.execute_ conn queryStr
+        ExecuteMany queryStr queryRows -> postgreSQLErrorFromException $ DB.executeMany conn queryStr queryRows
     )
     act
 
