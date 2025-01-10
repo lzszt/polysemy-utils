@@ -14,6 +14,7 @@ module Effects.Time (
   Time (..),
   getTime,
   Effects.Time.getCurrentTimeZone,
+  Effects.Time.getTimeZone,
   runTime,
   runFixedTime,
   runFakeTime,
@@ -28,6 +29,7 @@ import Polysemy.State
 data Time r a where
   GetTime :: Time r UTCTime
   GetCurrentTimeZone :: Time r TimeZone
+  GetTimeZone :: UTCTime -> Time r TimeZone
 
 makeSem ''Time
 
@@ -37,6 +39,7 @@ runTime =
   interpret $ \case
     GetTime -> embed getCurrentTime
     GetCurrentTimeZone -> embed Data.Time.getCurrentTimeZone
+    GetTimeZone t -> embed $ Data.Time.getTimeZone t
 
 -- | Testing interpretations
 
@@ -46,6 +49,7 @@ runFixedTime (fixedTime, fixedTimeZone) =
   interpret $ \case
     GetTime -> pure fixedTime
     GetCurrentTimeZone -> pure fixedTimeZone
+    GetTimeZone _ -> pure fixedTimeZone
 
 -- | Runs `Time` as fixed to given `UTCTime`
 -- but advances time whenever a `Delay` effect is encountered
@@ -57,4 +61,5 @@ runFakeTime (startTime, timeZone) =
       ( \case
           GetTime -> get
           GetCurrentTimeZone -> pure timeZone
+          GetTimeZone _ -> pure timeZone
       )
